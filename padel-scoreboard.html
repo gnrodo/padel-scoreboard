@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tennis Scoreboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #2c2c54;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+        }
+        .scoreboard {
+            background-color: #34315e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 100px;
+            height: auto;
+        }
+        .title {
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+        .scores {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .team {
+            display: flex;
+            flex-direction: column;
+            padding: 5px 0;
+        }
+        .player {
+            display: flex;
+            align-items: center;
+            margin: 2px 0;
+            font-size: 0.9em;
+        }
+        .player-name {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1em;
+            padding: 2px;
+            margin-left: 5px;
+            cursor: text;
+        }
+        .player-name:focus {
+            outline: 1px solid #ffd700;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .flag {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .cell {
+            background-color: #ff5252;
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+        .cell:first-child {
+            border-top-left-radius: 5px;
+            border-bottom-left-radius: 5px;
+        }
+        .cell:last-child {
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
+        }
+        .cell.gold {
+            background-color: #8A2BE2; /* Changed to violet */
+        }
+        .cell.yellow {
+            background-color: #ffd700; /* Yellow color */
+        }
+        .timer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        .sponsor {
+            text-align: right;
+            margin-top: 10px;
+        }
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .action-button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .action-button:hover {
+            background-color: #45a049;
+        }
+        .cell.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="scoreboard">
+            <div class="header">
+                <img src="/api/placeholder/100/50" alt="Tennis Tour" class="logo">
+                <h1 class="title">TENNIS MATCH SCOREBOARD</h1>
+            </div>
+            <div class="scores">
+                <div class="team">
+                    <div class="player"><span class="flag">🇪🇸</span> <input type="text" class="player-name" value="PLAYER 1" onclick="this.select()"></div>
+                    <div class="player"><span class="flag">🇵🇹</span> <input type="text" class="player-name" value="PLAYER 2" onclick="this.select()"></div>
+                </div>
+                <div class="score-row" data-team="1">
+                    <div class="cell">0</div>
+                    <div class="cell">0</div>
+                    <div class="cell">0</div>
+                    <div class="cell gold" onclick="updateScore(1)">0</div>
+                </div>
+                <div class="team">
+                    <div class="player"><span class="flag">🇪🇸</span> <input type="text" class="player-name" value="PLAYER 3" onclick="this.select()"></div>
+                    <div class="player"><span class="flag">🇦🇷</span> <input type="text" class="player-name" value="PLAYER 4" onclick="this.select()"></div>
+                </div>
+                <div class="score-row" data-team="2">
+                    <div class="cell">0</div>
+                    <div class="cell">0</div>
+                    <div class="cell">0</div>
+                    <div class="cell gold" onclick="updateScore(2)">0</div>
+                </div>
+            </div>
+            <div class="timer">
+                <span id="time">00:00:00</span>
+            </div>
+            <div class="sponsor">
+                TENNIS WATCHES
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-button" onclick="undoLastAction()">Deshacer</button>
+            <button class="action-button" onclick="shareScore()">Compartir</button>
+            <button class="action-button" onclick="newMatch()">Nuevo Partido</button>
+        </div>
+    </div>
+
+    <script>
+        const tennisPoints = ['0', '15', '30', '40'];
+        let scoreHistory = [];
+        let currentSet = 0;
+        let matchComplete = false;
+
+        function updateScore(team) {
+            if (matchComplete) return;
+
+            const scoreRow = document.querySelector(`.score-row[data-team="${team}"]`);
+            const cells = scoreRow.querySelectorAll('.cell');
+            const currentPoint = cells[3].textContent;
+            
+            saveState();
+
+            if (currentPoint === '40') {
+                // Win the game
+                incrementGame(team);
+                resetPoints();
+            } else {
+                const nextIndex = (tennisPoints.indexOf(currentPoint) + 1) % tennisPoints.length;
+                cells[3].textContent = tennisPoints[nextIndex];
+            }
+
+            updateCellColors();
+        }
+
+        function resetPoints() {
+            document.querySelectorAll('.score-row').forEach(row => {
+                row.querySelector('.cell:last-child').textContent = '0';
+            });
+        }
+
+        function updateCellColors() {
+            const team1LastCell = document.querySelector('.score-row[data-team="1"] .cell:last-child');
+            const team2LastCell = document.querySelector('.score-row[data-team="2"] .cell:last-child');
+
+            if (team1LastCell.textContent === '40' && team2LastCell.textContent === '40') {
+                team1LastCell.classList.add('yellow');
+                team2LastCell.classList.add('yellow');
+            } else {
+                team1LastCell.classList.remove('yellow');
+                team2LastCell.classList.remove('yellow');
+            }
+        }
+
+        function incrementGame(team) {
+            const scoreRows = document.querySelectorAll('.score-row');
+            const cells1 = scoreRows[0].querySelectorAll('.cell');
+            const cells2 = scoreRows[1].querySelectorAll('.cell');
+
+            const currentGames1 = parseInt(cells1[currentSet].textContent);
+            const currentGames2 = parseInt(cells2[currentSet].textContent);
+
+            if (team === 1) {
+                cells1[currentSet].textContent = (currentGames1 + 1).toString();
+            } else {
+                cells2[currentSet].textContent = (currentGames2 + 1).toString();
+            }
+
+            // Check if set is won
+            if ((currentGames1 + 1 === 6 && currentGames2 <= 4) || 
+                (currentGames1 + 1 === 7 && currentGames2 === 5) || 
+                (currentGames1 + 1 === 7 && currentGames2 === 6) ||
+                (currentGames2 + 1 === 6 && currentGames1 <= 4) || 
+                (currentGames2 + 1 === 7 && currentGames1 === 5) || 
+                (currentGames2 + 1 === 7 && currentGames1 === 6)) {
+                
+                if (currentSet < 2) {
+                    currentSet++;
+                    // Reset game scores for the new set
+                    cells1[currentSet].textContent = '0';
+                    cells2[currentSet].textContent = '0';
+                }
+                checkMatchComplete();
+            }
+        }
+
+        function checkMatchComplete() {
+            const scoreRows = document.querySelectorAll('.score-row');
+            const cells1 = scoreRows[0].querySelectorAll('.cell');
+            const cells2 = scoreRows[1].querySelectorAll('.cell');
+
+            let setsWonTeam1 = 0;
+            let setsWonTeam2 = 0;
+
+            for (let i = 0; i < 3; i++) {
+                const gamesTeam1 = parseInt(cells1[i].textContent);
+                const gamesTeam2 = parseInt(cells2[i].textContent);
+
+                if (gamesTeam1 > gamesTeam2 && gamesTeam1 >= 6) {
+                    setsWonTeam1++;
+                } else if (gamesTeam2 > gamesTeam1 && gamesTeam2 >= 6) {
+                    setsWonTeam2++;
+                }
+            }
+
+            if (setsWonTeam1 === 2 || setsWonTeam2 === 2) {
+                matchComplete = true;
+                disableScoring();
+                alert(`Match complete! ${setsWonTeam1 === 2 ? 'Team 1' : 'Team 2'} wins!`);
+            }
+        }
+
+        function disableScoring() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.classList.add('disabled');
+                cell.onclick = null;
+            });
+        }
+
+        function saveState() {
+            const state = {
+                team1: getTeamScore(1),
+                team2: getTeamScore(2),
+                time: document.getElementById('time').textContent,
+                players: getPlayerNames(),
+                currentSet: currentSet,
+                matchComplete: matchComplete
+            };
+            scoreHistory.push(state);
+        }
+
+        function getTeamScore(team) {
+            const scoreRow = document.querySelector(`.score-row[data-team="${team}"]`);
+            return Array.from(scoreRow.querySelectorAll('.cell')).map(cell => cell.textContent);
+        }
+
+        function getPlayerNames() {
+            return Array.from(document.querySelectorAll('.player-name')).map(input => input.value);
+        }
+
+        function undoLastAction() {
+            if (scoreHistory.length > 1) {
+                scoreHistory.pop(); // Remove current state
+                const previousState = scoreHistory[scoreHistory.length - 1];
+                setTeamScore(1, previousState.team1);
+                setTeamScore(2, previousState.team2);
+                document.getElementById('time').textContent = previousState.time;
+                setPlayerNames(previousState.players);
+                currentSet = previousState.currentSet;
+                matchComplete = previousState.matchComplete;
+                updateCellColors();
+                if (!matchComplete) {
+                    enableScoring();
+                }
+            }
+        }
+
+        function setTeamScore(team, score) {
+            const scoreRow = document.querySelector(`.score-row[data-team="${team}"]`);
+            const cells = scoreRow.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = score[index];
+            });
+        }
+
+        function setPlayerNames(names) {
+            const nameInputs = document.querySelectorAll('.player-name');
+            nameInputs.forEach((input, index) => {
+                input.value = names[index];
+            });
+        }
+
+        function shareScore() {
+            const players = getPlayerNames();
+            const score1 = getTeamScore(1);
+            const score2 = getTeamScore(2);
+            const scoreString = `${players[0]}/${players[1]} vs ${players[2]}/${players[3]}\n${score1.join('-')} | ${score2.join('-')}`;
+            alert(`Current Score:\n${scoreString}`);
+        }
+
+        function newMatch() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.textContent = '0';
+                cell.classList.remove('yellow', 'disabled');
+            });
+            document.getElementById('time').textContent = '00:00:00';
+            scoreHistory = [];
+            currentSet = 0;
+            matchComplete = false;
+            enableScoring();
+            saveState();
+        }
+
+        function enableScoring() {
+            const cells = document.querySelectorAll('.cell.gold');
+            cells.forEach((cell, index) => {
+                cell.classList.remove('disabled');
+                cell.onclick = () => updateScore(index + 1);
+            });
+        }
+
+        function updateTimer() {
+            const timerElement = document.getElementById('time');
+            let [hours, minutes, seconds] = timerElement.textContent.split(':').map(Number);
+
+            setInterval(() => {
+                seconds++;
+                if (seconds === 60) {
+                    seconds = 0;
+                    minutes++;
+                    if (minutes === 60) {
+                        minutes = 0;
+                        hours++;
+                    }
+                }
+                const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                timerElement.textContent = formattedTime;
+            }, 1000);
+        }
+
+        updateTimer();
+        saveState(); // Save initial state
+    </script>
+</body>
+</html>
